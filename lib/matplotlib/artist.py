@@ -34,7 +34,17 @@ def allow_rasterization(draw):
     def draw_wrapper(artist, renderer, *args, **kwargs):
         try:
             if artist.get_rasterized():
-                renderer.start_rasterizing()
+                if renderer._raster_depth == 0 and not renderer._rasterizing:
+                    renderer.start_rasterizing()
+                    renderer._rasterizing = True
+                renderer._raster_depth += 1
+            else:
+                if renderer._raster_depth == 0 and renderer._rasterizing:
+                    # Only stop when we are not in a rasterized parent
+                    # and something has be rasterized since last stop
+                    renderer.stop_rasterizing()
+                    renderer._rasterizing = False
+
             if artist.get_agg_filter() is not None:
                 renderer.start_filter()
 
@@ -43,7 +53,7 @@ def allow_rasterization(draw):
             if artist.get_agg_filter() is not None:
                 renderer.stop_filter(artist.get_agg_filter())
             if artist.get_rasterized():
-                renderer.stop_rasterizing()
+                renderer._raster_depth -= 1
 
     draw_wrapper._supports_rasterization = True
     return draw_wrapper
